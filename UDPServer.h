@@ -24,6 +24,8 @@
 // for ack_flag
 #define FLAG_ACK 0
 #define FALG_DATA 1
+//
+#define PKT_SIZE 1000
 
 typedef char BYTE;
 
@@ -55,6 +57,9 @@ private:
     // for reliable 
     int reqNum;
     void sendACK( struct pkt * packet );
+    bool randDrop(); // 2% drop rate, return true if drop
+    int dupACK_flag;
+    int dupACK_count;
 };
 
 

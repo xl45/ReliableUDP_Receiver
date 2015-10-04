@@ -3,6 +3,8 @@
 
 UDPServer::UDPServer(std::string port){
     reqNum = 1;
+    dupACK_flag = 1;
+    dupACK_count = 0;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -10,7 +12,7 @@ UDPServer::UDPServer(std::string port){
 
     // getaddrinfo
     int status;
-    if( (status = getaddrinfo(NULL, port.c_str(), &hints, &serverinfo)) != 0 ){
+    if( (status = getaddrinfo("0.0.0.0", port.c_str(), &hints, &serverinfo)) != 0 ){
         std::cout << "getaddrinfo() function error:" << gai_strerror(status) << std::endl;
         exit(1);
     }
@@ -32,11 +34,12 @@ UDPServer::UDPServer(std::string port){
 void UDPServer::work(){
     struct pkt temp1;
     struct pkt temp2;
+    int lostPkt;
 
     while(1){
         memset(&recv_buffer, 0, 1500);
-        memset( &temp1 , 0, 1000);
-        memset( &temp2 , 0, 1000);
+        memset( &temp1 , 0, PKT_SIZE);
+        memset( &temp2 , 0, PKT_SIZE);
         addr_len = sizeof(client_addr);
 
         if( (recvfrom(serverFD, recv_buffer, 1500, 0, (struct sockaddr*)&client_addr, &addr_len)) == -1 ){
@@ -44,9 +47,21 @@ void UDPServer::work(){
             exit(1);
         }
 
-        memcpy( &temp1, recv_buffer, 1000 );
-        std::cout << "--recv pkt-- " << "seq_num: " << temp1.seq_num << ", ack_num: " << temp1.ack_num << ", ack_flag: " << temp1.ack_flag;
-    
+        memcpy( &temp1, recv_buffer, PKT_SIZE );
+        std::cout << "**recv pkt** " << "seq_num: " << temp1.seq_num << ", ack_num: " << temp1.ack_num << ", ack_flag: " << temp1.ack_flag;
+        // random drop
+        if( randDrop() && dupACK_flag ){
+            std::cout << "  ~~~ drop this pkt!! ~~~\n";
+            dupACK_flag = 0;
+            lostPkt = temp1.seq_num;
+            continue;
+        }
+        //
+        if( temp1.seq_num == lostPkt ){
+            dupACK_flag = 1;
+            dupACK_count = 0;
+        }
+        // send ack
         if( temp1.seq_num == reqNum ){
             temp2.seq_num = -1;
             temp2.ack_num = temp1.seq_num + 1;
@@ -60,8 +75,15 @@ void UDPServer::work(){
             temp2.ack_num = reqNum;
             temp2.ack_flag = FLAG_ACK;
 
+            if( dupACK_count == 3 ){
+                // already send out 3 dup ack, discard this packet and donot send ack
+                std::cout << " - discard! send out ack: " << reqNum << std::endl;
+                continue;
+            }
+
             std::cout << " - discard! send out ack: " << reqNum << std::endl;
             sendACK( &temp2 );
+            dupACK_count++;
         }
     }
     close(serverFD);
@@ -69,7 +91,18 @@ void UDPServer::work(){
 
 
 void UDPServer::sendACK( struct pkt * packet ){
-    
+    BYTE temp[PKT_SIZE];
+    memcpy( temp, packet, PKT_SIZE );
+    if( (sendto(serverFD, temp, PKT_SIZE, 0, (struct sockaddr *)&client_addr,addr_len)) == -1){
+        perror("receiver sendto(): ");
+        exit(1);
+    }
+}
+
+
+bool UDPServer::randDrop(){
+    int r = rand()%50 + 1; // 1 ~ 50
+    return (r==25);
 }
 
 
