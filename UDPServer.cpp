@@ -37,7 +37,10 @@ void UDPServer::work(){
             exit(1);
         }
 
-        std::cout << "receiver receive: \n" << recv_buffer << std::endl << std::endl; 
+        struct pkt temp;
+        memcpy( &temp, recv_buffer, 1000 );
+
+        std::cout << "--recv pkt-- " << "seq_num: " << temp.seq_num << ", ack_num: " << temp.ack_num << ", ack_flag: " << temp.ack_flag << std::endl;
     }
 
     close(serverFD);

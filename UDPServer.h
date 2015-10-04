@@ -15,6 +15,28 @@
 #include <arpa/inet.h>
 
 
+// for phase
+#define SLOW_START 0
+#define CONGESTION_AVOID 1
+#define FAST_RECOVERY 2
+// 
+#define INIT_SEQ_NUM 1
+// for ack_flag
+#define FLAG_ACK 0
+#define FALG_DATA 1
+
+typedef char BYTE;
+
+// pkt max length = 1500-20(ip)-20(udp) = 1460
+// now the pkt size is 988+10 bytes, 1KB
+struct pkt{
+    int seq_num;
+    int ack_num;
+    int ack_flag;
+    BYTE payload[988];
+};
+
+
 class UDPServer{
 public:
     UDPServer(std::string port);
