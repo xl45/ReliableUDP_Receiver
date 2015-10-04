@@ -44,12 +44,17 @@ public:
     void work();
 
 private:
+		// for udp
     struct addrinfo hints;
     struct addrinfo *serverinfo;
     struct sockaddr_storage client_addr;
     socklen_t addr_len;
     int serverFD;
     char recv_buffer[1500];
+
+    // for reliable 
+    int reqNum;
+    void sendACK( struct pkt * packet );
 };
 
 
